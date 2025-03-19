@@ -1,0 +1,33 @@
+#message-hide-panel {
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--SmartThemeBorderColor);
+}
+
+#message-hide-panel input[type="number"] {
+    background: var(--SmartThemeBlurTintColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    color: var(--SmartThemeBodyColor);
+    padding: 5px;
+    border-radius: 5px;
+    margin: 5px 0;
+}
+
+#message-hide-panel .menu_button {
+    padding: 5px 10px;
+    font-size: 0.9em;
+}
+
+.advanced-settings-popup {
+    background: var(--SmartThemeBlurTintColor);
+    border-radius: 10px;
+}
+
+.advanced-settings-popup input[type="number"] {
+    background: var(--SmartThemeBlurTintColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    color: var(--SmartThemeBodyColor);
+    padding: 5px;
+    border-radius: 5px;
+    margin: 5px 0;
+}
