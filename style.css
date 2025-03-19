@@ -1,69 +1,85 @@
-#message-hide-panel {
+#hide-helper-panel {
     position: fixed;
-    right: 10px;
+    right: 20px;
     top: 200px;
     width: 150px;
-    background: var(--SmartThemeBlurTintColor);
+    height: auto;
+    background-color: var(--background-primary);
+    border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 10px;
     z-index: 1000;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--SmartThemeBorderColor);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    color: var(--text-color);
 }
 
-#message-hide-panel .hide-count-container {
+#hide-helper-panel h4 {
+    margin-top: 0;
     text-align: center;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.hide-helper-section {
     margin-bottom: 10px;
 }
 
-#message-hide-panel .button-container {
+.hide-helper-section label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.hide-helper-section input[type="number"] {
+    width: 100%;
+    padding: 5px;
+    box-sizing: border-box;
+    background-color: var(--background-secondary);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.hide-helper-buttons {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-top: 5px;
 }
 
-#message-hide-panel input[type="number"] {
-    background: var(--SmartThemeBlurTintColor);
-    border: 1px solid var(--SmartThemeBorderColor);
-    color: var(--SmartThemeBodyColor);
+.hide-helper-buttons button {
     padding: 5px;
-    border-radius: 5px;
-    margin: 5px 0;
-    width: 60px;
+    background-color: var(--background-secondary);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
 }
 
-#message-hide-panel .menu_button {
-    padding: 5px 10px;
-    font-size: 0.9em;
+.hide-helper-buttons button:hover {
+    background-color: var(--background-tertiary);
 }
 
-#save-settings-btn {
+.save-settings-btn {
     width: 100%;
-}
-
-.advanced-settings-popup {
-    background: var(--SmartThemeBlurTintColor);
-    border-radius: 10px;
-    padding: 20px;
-}
-
-.advanced-settings-popup .input-group {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.advanced-settings-popup input[type="number"] {
-    background: var(--SmartThemeBlurTintColor);
-    border: 1px solid var(--SmartThemeBorderColor);
-    color: var(--SmartThemeBodyColor);
     padding: 5px;
-    border-radius: 5px;
-    margin: 5px 0;
-    width: 60px;
+    margin-top: 10px;
+    background-color: var(--background-secondary);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
 }
 
-.advanced-settings-popup .button-container {
-    text-align: center;
+.save-settings-btn:hover {
+    background-color: var(--background-tertiary);
+}
+
+.hide-advanced-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.hide-advanced-panel input {
+    width: 45%;
 }
