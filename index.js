@@ -1,154 +1,198 @@
-import { extension_settings, getContext } from "../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../script.js";
-import { hideChatMessageRange } from "../../../../chat.js";
+import { extension_settings, loadExtensionSettings } from "../../../extensions.js";
+import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
+import { callPopup } from "../../../../script.js";
+import { getContext } from "../../../extensions.js";
+import { hideChatMessageRange } from "../../../chats.js";
 
-// 插件名称
-const extensionName = "message-hide";
-
-// 默认设置
+const extensionName = "hide-helper";
 const defaultSettings = {
-    hideCount: 0,
+    hideLastN: 0,
     advancedStart: -1,
     advancedEnd: -1,
-    isAdvancedMode: false
+    lastAppliedSettings: null
 };
 
-// 加载设置
+// Initialize extension settings
 function loadSettings() {
-    // 初始化插件设置
-    if (!extension_settings[extensionName]) {
-        extension_settings[extensionName] = {};
-    }
+    extension_settings[extensionName] = extension_settings[extensionName] || {};
     if (Object.keys(extension_settings[extensionName]).length === 0) {
         Object.assign(extension_settings[extensionName], defaultSettings);
     }
 }
 
-// 应用隐藏设置
-async function applyHideSettings() {
-    const settings = extension_settings[extensionName];
-    const chat = getContext().chat;
-    const chatLength = chat?.length || 0;
-    
-    if (chatLength === 0) return;
+// Create UI panel
+function createUI() {
+    const hideHelperPanel = document.createElement('div');
+    hideHelperPanel.id = 'hide-helper-panel';
+    hideHelperPanel.innerHTML = `
+        <h4>隐藏助手</h4>
+        <div class="hide-helper-section">
+            <label for="hide-last-n">隐藏楼层:</label>
+            <input type="number" id="hide-last-n" min="0" placeholder="隐藏最后N层之前的消息">
+            <div class="hide-helper-buttons">
+                <button id="hide-advanced-btn">高级设置</button>
+                <button id="hide-apply-btn">应用</button>
+            </div>
+        </div>
+        <button class="save-settings-btn" id="hide-save-settings-btn">保存当前设置</button>
+    `;
+    document.body.appendChild(hideHelperPanel);
 
-    // 先取消所有隐藏
-    await hideChatMessageRange(0, chatLength - 1, true);
-    
-    if (settings.isAdvancedMode) {
-        // 高级模式：使用指定范围
-        if (settings.advancedStart >= -1 && settings.advancedEnd > settings.advancedStart) {
-            const start = Math.max(0, settings.advancedStart + 1);
-            const end = Math.min(chatLength - 1, settings.advancedEnd - 1);
-            if (start < end) {
-                await hideChatMessageRange(start, end);
-            }
+    // Setup event listeners
+    setupEventListeners();
+}
+
+// Setup event listeners for UI elements
+function setupEventListeners() {
+    // Last N hide input
+    const hideLastNInput = document.getElementById('hide-last-n');
+    hideLastNInput.value = extension_settings[extensionName].hideLastN || '';
+    hideLastNInput.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value) || 0;
+        extension_settings[extensionName].hideLastN = value;
+        saveSettingsDebounced();
+    });
+
+    // Advanced settings button
+    document.getElementById('hide-advanced-btn').addEventListener('click', showAdvancedSettings);
+
+    // Apply button
+    document.getElementById('hide-apply-btn').addEventListener('click', applyHideSettings);
+
+    // Save settings button
+    document.getElementById('hide-save-settings-btn').addEventListener('click', saveCurrentSettings);
+
+    // Listen for new messages to reapply settings if needed
+    eventSource.on(event_types.MESSAGE_RECEIVED, () => {
+        if (extension_settings[extensionName].lastAppliedSettings) {
+            applyLastSettings();
         }
-    } else {
-        // 基本模式：隐藏最后N条之前的消息
-        if (settings.hideCount > 0 && chatLength > settings.hideCount) {
-            await hideChatMessageRange(0, chatLength - settings.hideCount - 1);
+    });
+}
+
+// Show advanced settings popup
+async function showAdvancedSettings() {
+    const context = getContext();
+    const chatLength = context.chat?.length || 0;
+    const defaultStart = extension_settings[extensionName].advancedStart || -1;
+    const defaultEnd = extension_settings[extensionName].advancedEnd || (chatLength + 1);
+
+    const content = `
+        <div>
+            <p>设置要隐藏的消息范围 (会隐藏第X+1至Y-1条消息)</p>
+            <div class="hide-advanced-panel">
+                <input id="hide-start-idx" type="number" value="${defaultStart}" placeholder="开始位置">
+                <input id="hide-end-idx" type="number" value="${defaultEnd}" placeholder="结束位置">
+            </div>
+        </div>
+    `;
+
+    const result = await callPopup(content, 'confirm');
+    if (result) {
+        const startIdx = parseInt(document.getElementById('hide-start-idx').value) || -1;
+        const endIdx = parseInt(document.getElementById('hide-end-idx').value) || (chatLength + 1);
+        
+        extension_settings[extensionName].advancedStart = startIdx;
+        extension_settings[extensionName].advancedEnd = endIdx;
+        saveSettingsDebounced();
+        
+        // Apply advanced settings
+        if (startIdx >= -1 && endIdx > startIdx) {
+            applyAdvancedHideSettings(startIdx, endIdx);
         }
     }
 }
 
-// 创建UI面板
-function createPanel() {
-    const settingsHtml = `
-        <div id="message-hide-panel">
-            <div class="hide-count-container">
-                <label>隐藏楼层</label>
-                <input type="number" id="hide-count-input" min="0" />
-            </div>
-            <div class="button-container">
-                <button id="advanced-settings-btn" class="menu_button">高级设置</button>
-                <button id="apply-hide-btn" class="menu_button">应用</button>
-            </div>
-            <button id="save-settings-btn" class="menu_button">保存当前设置</button>
-        </div>
-    `;
-
-    // 添加到body
-    $('body').append(settingsHtml);
-}
-
-// 创建高级设置弹窗
-function showAdvancedSettings() {
-    const settings = extension_settings[extensionName];
-    const popupHtml = `
-        <div class="advanced-settings-popup">
-            <div class="input-group">
-                <div>
-                    <label>起始楼层</label>
-                    <input type="number" id="advanced-start" value="${settings.advancedStart}" />
-                </div>
-                <div>
-                    <label>结束楼层</label>
-                    <input type="number" id="advanced-end" value="${settings.advancedEnd}" />
-                </div>
-            </div>
-            <div class="button-container">
-                <button id="confirm-advanced-settings" class="menu_button">确定</button>
-            </div>
-        </div>
-    `;
+// Apply hide settings based on "hide last N" option
+async function applyHideSettings() {
+    const context = getContext();
+    const chatLength = context.chat?.length || 0;
     
-    callPopup(popupHtml, 'text');
-}
-
-// 初始化事件监听
-function initializeEventListeners() {
-    // 隐藏数量输入框事件
-    $(document).on('input', '#hide-count-input', function() {
-        const value = parseInt($(this).val()) || 0;
-        extension_settings[extensionName].hideCount = value;
-        extension_settings[extensionName].isAdvancedMode = false;
-        saveSettingsDebounced();
-    });
+    if (chatLength === 0) return;
     
-    // 高级设置按钮事件
-    $(document).on('click', '#advanced-settings-btn', function() {
-        showAdvancedSettings();
-    });
+    const hideLastN = extension_settings[extensionName].hideLastN || 0;
     
-    // 应用按钮事件
-    $(document).on('click', '#apply-hide-btn', async function() {
-        await applyHideSettings();
-        toastr.success('已应用隐藏设置');
-    });
-    
-    // 保存设置按钮事件
-    $(document).on('click', '#save-settings-btn', async function() {
-        await applyHideSettings();
-        saveSettingsDebounced();
-        toastr.success('设置已保存');
-    });
-    
-    // 监听高级设置弹窗的确定按钮
-    $(document).on('click', '#confirm-advanced-settings', function() {
-        const start = parseInt($('#advanced-start').val()) || -1;
-        const end = parseInt($('#advanced-end').val()) || (getContext().chat?.length || 0);
+    if (hideLastN > 0 && hideLastN < chatLength) {
+        const visibleStart = chatLength - hideLastN;
+        // First unhide all messages
+        await hideChatMessageRange(0, chatLength - 1, true);
+        // Then hide the range we want to hide
+        await hideChatMessageRange(0, visibleStart - 1, false);
         
-        extension_settings[extensionName].advancedStart = start;
-        extension_settings[extensionName].advancedEnd = end;
-        extension_settings[extensionName].isAdvancedMode = true;
-        
+        extension_settings[extensionName].lastAppliedSettings = {
+            type: 'lastN',
+            value: hideLastN
+        };
         saveSettingsDebounced();
-        $('#dialogue_popup').hide();
-        toastr.success('高级设置已保存');
-    });
+    } else if (hideLastN === 0) {
+        // Unhide all messages
+        await hideChatMessageRange(0, chatLength - 1, true);
+        extension_settings[extensionName].lastAppliedSettings = null;
+        saveSettingsDebounced();
+    }
 }
 
-// 插件入口
+// Apply advanced hide settings
+async function applyAdvancedHideSettings(startIdx, endIdx) {
+    const context = getContext();
+    const chatLength = context.chat?.length || 0;
+    
+    if (chatLength === 0) return;
+    
+    // First unhide all messages
+    await hideChatMessageRange(0, chatLength - 1, true);
+    
+    // Then hide the specific range
+    if (startIdx >= -1 && endIdx > startIdx && startIdx < chatLength - 1) {
+        const actualStart = Math.max(0, startIdx + 1);
+        const actualEnd = Math.min(chatLength - 1, endIdx - 1);
+        
+        await hideChatMessageRange(actualStart, actualEnd, false);
+        
+        extension_settings[extensionName].lastAppliedSettings = {
+            type: 'advanced',
+            start: startIdx,
+            end: endIdx
+        };
+        saveSettingsDebounced();
+    }
+}
+
+// Save current settings
+function saveCurrentSettings() {
+    const hideLastN = extension_settings[extensionName].hideLastN || 0;
+    const advancedStart = extension_settings[extensionName].advancedStart || -1;
+    const advancedEnd = extension_settings[extensionName].advancedEnd || -1;
+    
+    if (hideLastN > 0) {
+        applyHideSettings();
+    } else if (advancedStart >= -1 && advancedEnd > advancedStart) {
+        applyAdvancedHideSettings(advancedStart, advancedEnd);
+    }
+    
+    toastr.success('隐藏设置已保存并应用');
+}
+
+// Apply last saved settings
+async function applyLastSettings() {
+    const lastSettings = extension_settings[extensionName].lastAppliedSettings;
+    
+    if (!lastSettings) return;
+    
+    if (lastSettings.type === 'lastN') {
+        await applyHideSettings();
+    } else if (lastSettings.type === 'advanced') {
+        await applyAdvancedHideSettings(lastSettings.start, lastSettings.end);
+    }
+}
+
+// Initialize extension
 jQuery(async () => {
     loadSettings();
+    createUI();
     
-    // 等待 DOM 完全加载
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    createPanel();
-    initializeEventListeners();
-    
-    // 设置初始值
-    $('#hide-count-input').val(extension_settings[extensionName].hideCount);
+    // Apply last settings if any
+    if (extension_settings[extensionName].lastAppliedSettings) {
+        setTimeout(applyLastSettings, 1000); // Slight delay to ensure chat is loaded
+    }
 });
