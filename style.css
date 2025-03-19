@@ -41,7 +41,7 @@
 
 .hide-helper-buttons {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     margin-top: 5px;
 }
 
@@ -52,6 +52,7 @@
     border: 1px solid var(--border-color);
     border-radius: 4px;
     cursor: pointer;
+    width: 100%;
 }
 
 .hide-helper-buttons button:hover {
@@ -71,15 +72,4 @@
 
 .save-settings-btn:hover {
     background-color: var(--background-tertiary);
-}
-
-.hide-advanced-panel {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 10px;
-}
-
-.hide-advanced-panel input {
-    width: 45%;
 }
